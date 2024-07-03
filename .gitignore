@@ -1,5 +1,5 @@
 # DB volumes
-postgres-data
+/postgres-data/
 
 # compiled output
 /dist
