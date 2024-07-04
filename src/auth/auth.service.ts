@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersModel } from '../users/entities/users.entity';
 import { JWT_SECRET } from './const/auth.const';
+import { UsersService } from '../users/users.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
+  ) {}
   /*
    * 1) registerWithEmail
    * - email, nickname, password를 입력받고 사용자를 생성한다.
@@ -30,12 +35,11 @@ export class AuthService {
    * */
 
   /*
-  * Payload에 들어갈 정보
-  * 1) email
-  * 2) sub -> id
-  * 3) type: 'access' | 'refresh'
-  * */
-
+   * Payload에 들어갈 정보
+   * 1) email
+   * 2) sub -> id
+   * 3) type: 'access' | 'refresh'
+   * */
   signToken(user: Pick<UsersModel, 'email' | 'id'>, isRefreshToken: boolean) {
     const payload = {
       email: user.email,
@@ -47,5 +51,30 @@ export class AuthService {
       secret: JWT_SECRET,
       expiresIn: isRefreshToken ? 3600 : 300,
     });
+  }
+
+  loginUser(user: Pick<UsersModel, 'email' | 'id'>) {
+    return {
+      accessToken: this.signToken(user, false),
+      refreshToken: this.signToken(user, true),
+    };
+  }
+
+  async authenticateWithEmailAndPassword(
+    user: Pick<UsersModel, 'email' | 'password'>,
+  ) {
+    const existingUser = await this.usersService.getUserByEmail(user.email);
+
+    if (!existingUser) {
+      throw new UnauthorizedException('존재하지 않는 사용자입니다.');
+    }
+
+    const passOk = await bcrypt.compare(user.password, existingUser.password);
+
+    if (!passOk) {
+      throw new UnauthorizedException('비밀번호가 틀렸습니다.');
+    }
+
+    return existingUser;
   }
 }
