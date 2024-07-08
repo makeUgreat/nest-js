@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostsModel } from './entities/post/posts.entity';
+import { CreatePostDto } from './dto/create-post.dto';
 
 export interface PostModel {
   id: number;
@@ -71,15 +72,14 @@ export class PostsService {
     return post;
   }
 
-  async createPost(authorId: number, title: string, content: string) {
+  async createPost(authorId: number, postDto: CreatePostDto) {
     // 1) create -> 저장할 객체를 생성한다.
     // 2) save -> 객체를 저장한다. (create 메서드에서 생성한 객체로)
     const post = this.postsRepository.create({
       author: {
         id: authorId,
       },
-      title,
-      content,
+      ...postDto,
       likeCount: 0,
       commentCount: 0,
     });
@@ -87,18 +87,6 @@ export class PostsService {
     const newPost = await this.postsRepository.save(post);
 
     return newPost;
-
-    // const post = {
-    //   id: posts[posts.length - 1].id + 1,
-    //   author,
-    //   title,
-    //   content,
-    //   likeCount: 0,
-    //   commentCount: 0,
-    // };
-    //
-    // posts = [...posts, post];
-    // return post;
   }
 
   async updatePost(postId: number, title: string, content: string) {

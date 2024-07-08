@@ -4,10 +4,16 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
+import { AccessTokenGuard } from '../auth/guard/bearer-token.guard';
+import { User } from '../users/decorator/users.decorator';
+import { UsersModel } from '../users/entities/users.entity';
+import { CreatePostDto } from './dto/create-post.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -19,18 +25,41 @@ export class PostsController {
   }
 
   @Get(':id')
-  getPost(@Param('id') id: string) {
-    return this.postsService.getPostById(+id);
+  getPost(@Param('id', ParseIntPipe) id: number) {
+    return this.postsService.getPostById(id);
   }
 
+  // @Post()
+  // @UseGuards(AccessTokenGuard)
+  // postPosts(
+  //   @Request() req: any,
+  //   @Body('title') title: string,
+  //   @Body('content') content: string,
+  // ) {
+  //   const authorId = req.user.id;
+  //   return this.postsService.createPost(authorId, title, content);
+  // }
+
   @Post()
-  postPost(
-    @Body('authorId') authorId: number,
-    @Body('title') title: string,
-    @Body('content') content: string,
+  @UseGuards(AccessTokenGuard)
+  postPosts(
+    @User() user: UsersModel,
+    @Body() body: CreatePostDto,
+    // @Body('title') title: string,
+    // @Body('content') content: string,
   ) {
-    return this.postsService.createPost(authorId, title, content);
+    return this.postsService.createPost(user.id, body);
   }
+
+  // @Post()
+  // @UseGuards(AccessTokenGuard)
+  // postPosts(
+  //   @User('id') user: number,
+  //   @Body('title') title: string,
+  //   @Body('content') content: string,
+  // ) {
+  //   return this.postsService.createPost(user, title, content);
+  // }
 
   @Put(':id')
   putPost(
