@@ -1,6 +1,7 @@
 import { Column, Entity, ManyToOne } from 'typeorm';
 import { UsersModel } from '../../../users/entities/users.entity';
 import { BaseModel } from '../../../common/entity/base.entity';
+import { IsOptional, IsString } from 'class-validator';
 
 @Entity()
 export class PostsModel extends BaseModel {
@@ -12,10 +13,14 @@ export class PostsModel extends BaseModel {
   author: UsersModel;
 
   @Column()
-  title: string;
+  @IsString({
+    message: 'title은 string 타입을 입력 해야합니다.',
+  })
+  title?: string;
 
   @Column()
-  content: string;
+  @IsString()
+  content?: string;
 
   @Column()
   likeCount: number;
