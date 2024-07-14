@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { MoreThan, Repository } from 'typeorm';
+import { FindOptionsWhere, LessThan, MoreThan, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PostsModel } from './entities/post/posts.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -16,33 +16,6 @@ export interface PostModel {
   commentCount: number;
 }
 
-const posts: PostModel[] = [
-  {
-    id: 1,
-    author: 'newjeans_official',
-    title: '뉴진스 민지',
-    content: '메이크업 고치고 있는 민지',
-    likeCount: 1234,
-    commentCount: 133,
-  },
-  {
-    id: 2,
-    author: 'newjeans_official',
-    title: '뉴진스 혜린',
-    content: '노래 연습하고있는 혜린',
-    likeCount: 1234,
-    commentCount: 133,
-  },
-  {
-    id: 3,
-    author: 'blackpink_official',
-    title: '블랙링크 로제',
-    content: '종운 노래중',
-    likeCount: 12334,
-    commentCount: 133,
-  },
-];
-
 @Injectable()
 export class PostsService {
   constructor(
@@ -58,10 +31,15 @@ export class PostsService {
 
   // 오름차순으로 정렬하는 paginateion만 구현
   async paginatePosts(dto: PaginatePostDto) {
+    const where: FindOptionsWhere<PostsModel> = {};
+    if (dto.where__id_less_than) {
+      where.id = LessThan(dto.where__id_less_than);
+    } else if (dto.where__id_more_than) {
+      where.id = MoreThan(dto.where__id_more_than);
+    }
+
     const posts = await this.postsRepository.find({
-      where: {
-        id: MoreThan(dto.where__id_more_than ?? 0),
-      },
+      where,
       order: {
         createdAt: dto.order__createdAt,
       },
@@ -69,11 +47,14 @@ export class PostsService {
     });
 
     /*
-     * 해당되는 포스트가 0개 잇아이면
+     * 해당되는 포스트가 0개 이상이면
      * 마지막 포스트를 가져오고
      * 아니면 null을 반환한다.
      * */
-    const lastItem = posts.length > 0 ? posts[posts.length - 1] : null;
+    const lastItem =
+      posts.length > 0 && posts.length === dto.take
+        ? posts[posts.length - 1]
+        : null;
 
     const nextUrl = lastItem && new URL(`${PROTOCOL}://${HOST}/posts`);
 
@@ -87,16 +68,21 @@ export class PostsService {
        * */
       for (const key of Object.keys(dto)) {
         if (dto[key]) {
-          if (key === 'where__id_more_than') {
-            nextUrl.searchParams.append(key, lastItem.id.toString());
-          } else {
+          if (key !== 'where__id_more_than' && key !== 'where__id_less_than') {
             nextUrl.searchParams.append(key, dto[key]);
           }
         }
       }
 
-      nextUrl.searchParams.append('where__id_more_than', lastItem.id.toString());
+      let key = null;
 
+      if (dto.order__createdAt === 'ASC') {
+        key = 'where__id_more_than';
+      } else {
+        key = 'where__id_less_than';
+      }
+
+      nextUrl.searchParams.append(key, lastItem.id.toString());
     }
 
     /*
@@ -113,10 +99,10 @@ export class PostsService {
     return {
       data: posts,
       cursor: {
-        after: lastItem?.id,
+        after: lastItem?.id ?? null,
       },
       count: posts.length,
-      next: nextUrl?.toString(),
+      next: nextUrl?.toString() ?? null,
     };
   }
 
